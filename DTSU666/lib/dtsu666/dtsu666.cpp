@@ -23,7 +23,7 @@ float Read_Voltage_C(){
 
 float ReadFloat_Value(uint16_t Reg){
     Data_Convert Float;
-    uint8_t result = node1.readHoldingRegisters(UC_H, 2);
+    uint8_t result = node1.readHoldingRegisters(Reg, 2);
     if (result == node1.ku8MBSuccess) {
         Float.u32 = ((uint32_t)node1.getResponseBuffer(0) << 16)| node1.getResponseBuffer(1);
         return Float.f;
