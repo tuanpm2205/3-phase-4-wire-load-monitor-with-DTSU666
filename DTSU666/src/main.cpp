@@ -15,4 +15,5 @@ void loop(){
     Serial.println(Read_Voltage_B());
     Serial.print("Uc:");
     Serial.println(Read_Voltage_C());
+    delay(5000);
 }
