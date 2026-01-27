@@ -2,6 +2,7 @@
 #define PZEM016_REGISTERS_H
 
 #include <stdint.h>
+#include <ModbusMaster.h>
 
 // --------------------------------------------------------------------------
 // 1. MEASUREMENT RESULT REGISTERS (Thanh ghi kết quả đo)
@@ -57,5 +58,9 @@ enum PZEM_Holding_Registers : uint16_t {
     // Mặc định thường là 0x01
     REG_PARAM_ADDRESS     = 0x0002  
 };
+
+
+uint16_t Read_Reg(uint16_t reg);
+
 
 #endif // PZEM016_REGISTERS_H
