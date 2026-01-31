@@ -16,13 +16,14 @@ uint16_t Read_Input_Reg(uint16_t reg){
 }
 
 float PZEM_Read_Voltage(void){
-    return (float)Read_Input_Reg(REG_VOLTAGE)/10.0;
+    uint16_t v = Read_Input_Reg(REG_VOLTAGE);
+    if (v == READ_ERROR) return NAN;
+    return v / 10.0;
 }
 
 float PZEM_Read_Current(void){
-    uint16_t high, low;
-    low = Read_Input_Reg(REG_CURRENT_L);
-    high = Read_Input_Reg(REG_CURRENT_H);
-    return (((uint32_t)high << 16) | low)/1000.0;
+    uint16_t low = Read_Input_Reg(REG_CURRENT_L);
+    uint16_t high = Read_Input_Reg(REG_CURRENT_H);
+    if (low == READ_ERROR || high == READ_ERROR) return NAN;
+    return (((uint32_t)high << 16) | low) / 1000.0;
 }
-

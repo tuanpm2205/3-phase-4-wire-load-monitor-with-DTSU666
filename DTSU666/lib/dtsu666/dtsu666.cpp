@@ -4,7 +4,7 @@
 ModbusMaster node1;
 
 void Init_dtsu666(){
-    Serial2.begin(default_baudrate, SERIAL_8N1, RX_Pin, TX_Pin);
+    Serial2.begin(default_baudrate_dtsu666, SERIAL_8N1, RX_Pin_dtsu666, TX_Pin_dtsu666);
     node1.begin(dtsu_slaveid, Serial2);
 }
 

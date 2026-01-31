@@ -66,11 +66,13 @@ enum PZEM_Holding_Registers : uint16_t {
     // Modbus RTU Address (Địa chỉ thiết bị)
     // Range: 0x0001 ~ 0x00F7 (1-247)
     // Mặc định thường là 0x01
-    REG_PARAM_ADDRESS     = 0x0002  
+    REG_PARAM_ADDRESS     = 0x0002
 };
 
 
 uint16_t Read_Reg(uint16_t);
+float PZEM_Read_Voltage(void);
+float PZEM_Read_Current(void);
 void Init_Pzem(void);
 
 #endif // PZEM016_REGISTERS_H
