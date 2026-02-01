@@ -2,6 +2,17 @@
 #define PZEM016_REGISTERS_H
 
 #include <stdint.h>
+#include <ModbusMaster.h>
+
+#ifndef READ_ERROR
+#define READ_ERROR -1
+#endif
+
+#define pzem_slaveid 0x01 // Datasheet
+#define default_baudrate_pzem 9600 // Default
+
+#define TX_Pin_pzem 16
+#define RX_Pin_pzem 17
 
 // --------------------------------------------------------------------------
 // 1. MEASUREMENT RESULT REGISTERS (Thanh ghi kết quả đo)
@@ -55,7 +66,13 @@ enum PZEM_Holding_Registers : uint16_t {
     // Modbus RTU Address (Địa chỉ thiết bị)
     // Range: 0x0001 ~ 0x00F7 (1-247)
     // Mặc định thường là 0x01
-    REG_PARAM_ADDRESS     = 0x0002  
+    REG_PARAM_ADDRESS     = 0x0002
 };
+
+
+uint16_t Read_Reg(uint16_t);
+float PZEM_Read_Voltage(void);
+float PZEM_Read_Current(void);
+void Init_Pzem(void);
 
 #endif // PZEM016_REGISTERS_H
