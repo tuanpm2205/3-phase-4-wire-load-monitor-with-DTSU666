@@ -5,7 +5,7 @@
 #include <ModbusMaster.h>
 
 #ifndef READ_ERROR
-#define READ_ERROR -1
+#define READ_ERROR 0xFFFF
 #endif
 
 #define pzem_slaveid 0x01 // Datasheet
@@ -73,6 +73,7 @@ enum PZEM_Holding_Registers : uint16_t {
 uint16_t Read_Reg(uint16_t);
 float PZEM_Read_Voltage(void);
 float PZEM_Read_Current(void);
+float PZEM_Read_Power(void);
 void Init_Pzem(void);
 
 #endif // PZEM016_REGISTERS_H

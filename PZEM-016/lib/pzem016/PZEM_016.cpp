@@ -27,3 +27,10 @@ float PZEM_Read_Current(void){
     if (low == READ_ERROR || high == READ_ERROR) return NAN;
     return (((uint32_t)high << 16) | low) / 1000.0;
 }
+
+float PZEM_Read_Power(void){
+    uint16_t low = Read_Input_Reg(REG_POWER_L);
+    uint16_t high = Read_Input_Reg(REG_POWER_H);
+    if (low == READ_ERROR || high == READ_ERROR) return NAN;
+    return (((uint32_t)high << 16) | low) / 10.0;
+}
