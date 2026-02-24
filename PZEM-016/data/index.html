@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Datalogger</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg: #080c10;
@@ -48,11 +49,6 @@
             background-size: 40px 40px;
             animation: gridShift 20s linear infinite;
             pointer-events: none;
-        }
-
-        @keyframes gridShift {
-            0% { background-position: 0 0; }
-            100% { background-position: 40px 40px; }
         }
 
         /* Radial glow */
@@ -305,19 +301,97 @@
             letter-spacing: 0.06em;
         }
 
+        /* Modal Chart Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 12, 16, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-card {
+            max-width: 800px;
+            width: 90%;
+            padding: 30px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.active .modal-card {
+            transform: translateY(0);
+        }
+
+        .modal-card::before, .modal-card::after {
+            content: ''; position: absolute; width: 16px; height: 16px;
+            border-color: var(--accent); border-style: solid;
+        }
+        .modal-card::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+        .modal-card::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            font-family: var(--display);
+            color: var(--accent);
+            font-size: 1.5rem;
+            letter-spacing: 0.1em;
+            margin: 0;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+            font-family: var(--mono);
+        }
+
+        .close-btn:hover {
+            color: var(--red);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 40vh;
+            width: 100%;
+        }
+
         @media (max-width: 480px) {
             .card { padding: 32px 20px 28px; }
             h1 { font-size: 1.8rem; }
+            .chart-container { height: 30vh; }
         }
     </style>
 </head>
 <body>
     <div class="card">
-
         <div class="status-bar">
-            <div class="status-dot"></div>
-            DEVICE ONLINE
-            <span class="ip">192.168.1.1</span>
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">CONNECTING...</span>
+            <span class="ip" id="power-display">-- W</span>
         </div>
 
         <div class="header">
@@ -327,13 +401,13 @@
         </div>
 
         <div class="btn-group">
-            <a href="view-data" class="button button-view">
+            <a href="#" id="btn-view" class="button button-view">
                 <div class="button-icon">📊</div>
                 View Data
                 <span class="button-arrow">→</span>
             </a>
 
-            <a href="download" class="button button-download">
+            <a href="/download" class="button button-download">
                 <div class="button-icon">⬇</div>
                 Download Data
                 <span class="button-arrow">→</span>
@@ -341,7 +415,7 @@
 
             <div class="divider"><span>DANGER ZONE</span></div>
 
-            <a href="delete" class="button button-delete">
+            <a href="/delete" id="btn-delete" class="button button-delete">
                 <div class="button-icon">🗑</div>
                 Delete Data
                 <span class="button-arrow">→</span>
@@ -354,13 +428,142 @@
         </div>
     </div>
 
+    <div id="chart-modal" class="modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>REAL-TIME POWER STREAM</h2>
+                <button id="close-modal" class="close-btn">✖</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="dataChart"></canvas>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // --- ĐỒNG HỒ TRÌNH DUYỆT ---
         const clock = document.getElementById('clock');
         function tick() {
             clock.textContent = new Date().toLocaleTimeString('en-GB');
         }
         tick();
         setInterval(tick, 1000);
+
+        // --- CÁC BIẾN CHO CHART.JS VÀ FETCH API ---
+        const MAX_DATA_POINTS = 20;
+        let chartLabels = [];
+        let chartDataPower = [];
+        let myChart = null;
+
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const powerDisplay = document.getElementById('power-display');
+
+        // --- KHỞI TẠO BIỂU ĐỒ ---
+        function initChart() {
+            const ctx = document.getElementById('dataChart').getContext('2d');
+            
+            Chart.defaults.color = '#4a6070';
+            Chart.defaults.font.family = "'Share Tech Mono', monospace";
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'POWER (W)',
+                        data: chartDataPower,
+                        borderColor: '#00d4ff',
+                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#00d4ff',
+                        pointBorderColor: '#080c10',
+                        pointBorderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 400 },
+                    plugins: { legend: { labels: { color: '#00d4ff', boxWidth: 12 } } },
+                    scales: {
+                        x: { grid: { color: 'rgba(30, 45, 61, 0.5)' } },
+                        y: { grid: { color: 'rgba(30, 45, 61, 0.5)' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // --- FETCH API: LẤY DỮ LIỆU TỪ ESP32 ---
+        function fetchRealTimeData() {
+            fetch('/api/data')
+                .then(response => {
+                    if (!response.ok) throw new Error("Network error");
+                    return response.json();
+                })
+                .then(data => {
+                    // Cập nhật UI trạng thái
+                    statusDot.style.background = 'var(--green)';
+                    statusDot.style.boxShadow = '0 0 8px var(--green)';
+                    statusText.textContent = 'DEVICE ONLINE';
+                    powerDisplay.textContent = data.power.toFixed(2) + ' W';
+
+                    // Cập nhật dữ liệu mảng
+                    chartLabels.push(data.time);
+                    chartDataPower.push(data.power);
+
+                    if (chartLabels.length > MAX_DATA_POINTS) {
+                        chartLabels.shift();
+                        chartDataPower.shift();
+                    }
+
+                    // Vẽ lại biểu đồ nếu Modal đang mở
+                    if (myChart) {
+                        myChart.update();
+                    }
+                })
+                .catch(error => {
+                    console.error('Mất kết nối với ESP32:', error);
+                    statusDot.style.background = 'var(--red)';
+                    statusDot.style.boxShadow = '0 0 8px var(--red)';
+                    statusText.textContent = 'CONNECTION LOST';
+                    powerDisplay.textContent = '-- W';
+                });
+        }
+
+        // Gọi API mỗi 5 giây
+        setInterval(fetchRealTimeData, 5000);
+        fetchRealTimeData(); // Lấy ngay khi tải trang
+
+        // --- LOGIC GIAO DIỆN NÚT BẤM ---
+        const btnView = document.getElementById('btn-view');
+        const modal = document.getElementById('chart-modal');
+        const btnClose = document.getElementById('close-modal');
+        const btnDelete = document.getElementById('btn-delete');
+
+        // Mở Modal Biểu Đồ
+        btnView.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.classList.add('active');
+            if (!myChart) initChart();
+        });
+
+        // Đóng Modal
+        btnClose.addEventListener('click', () => modal.classList.remove('active'));
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('active');
+        });
+
+        // Cảnh báo trước khi xóa
+        btnDelete.addEventListener('click', (e) => {
+            if(!confirm('CẢNH BÁO: Hành động này sẽ xóa vĩnh viễn dữ liệu trên ESP32. Bạn có chắc chắn không?')) {
+                e.preventDefault(); // Hủy chuyển hướng nếu chọn Cancel
+            }
+        });
     </script>
 </body>
 </html>
