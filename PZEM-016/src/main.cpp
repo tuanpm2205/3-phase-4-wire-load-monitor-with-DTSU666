@@ -119,6 +119,8 @@
         server.begin();
         Serial.println("HTTP server đã khởi chạy!");
 
+
+        //Config server định thời
         configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
         struct tm timeinfo;
         if (!getLocalTime(&timeinfo)) {
@@ -126,16 +128,19 @@
             return;
         }
 
+        // Clear LCD
         lcd.clear();
     }
 
 
     void loop(){
+        // Chu kỳ đọc data
         if (millis() - tmr >= 5000){
             tmr = millis();
 
             float P = PZEM_Read_Power();
 
+            //Nếu kết quả đọc công suất trả về là NAN
             if (isnan(P)) {
                 lcd.clear();
                 lcd.setCursor(0,0);
@@ -143,7 +148,10 @@
                 return;
             }
 
+            //Khởi tạo biến để xuất ra chart
             current_P = P;
+
+            //Khởi tạo biến in ra LCD1602
             char bufP[16];
             snprintf(bufP, sizeof(bufP), "%4.2f", P);
 
@@ -165,6 +173,7 @@
                 lcd.setCursor(0, 0);
                 lcd.print(timeStr);
 
+                // Ghi data sau khi đọc được thời gian
                 File file = LittleFS.open(dataFilePath, "a");
                 if (file) {
                     file.printf("%s,%s,%.2f\n", dateBuf, timeBuf, P);
@@ -175,6 +184,7 @@
                 }
 
             } else {
+                // Nếu không lấy được thời gian
                 lcd.setCursor(0, 0);
                 lcd.print("--/-- --:--");
             }
