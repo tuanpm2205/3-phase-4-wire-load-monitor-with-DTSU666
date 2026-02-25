@@ -39,9 +39,10 @@ lib_deps =
 2. **Nạp dữ liệu (Web UI):**
    * Đặt file index.html vào thư mục data/ trong thư mục gốc của dự án.
    * Mở PlatformIO ➔ Project Tasks ➔ esp32dev ➔ Platform.
-   * Chạy lần lượt lệnh Build Filesystem Image và Upload Filesystem Image.
+   * Chạy lần lượt lệnh **Build Filesystem Image** sau đó **Upload Filesystem Image**.
 3. **Nạp Firmware:** Nhấn lệnh Upload trên thanh công cụ PlatformIO để biên dịch và nạp mã C++ vào ESP32.
 4. **Vận hành:**
    * Cấp nguồn cho thiết bị.
-   * Đọc địa chỉ IP hiển thị trên màn hình thông qua UART với máy tính.
+   * Đọc địa chỉ IP hiển thị trên màn hình thông qua **Serial** với máy tính.
    * Truy cập địa chỉ IP qua trình duyệt web trên thiết bị cùng mạng WiFi để sử dụng bảng điều khiển.
+
