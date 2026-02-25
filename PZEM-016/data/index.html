@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Datalogger</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg: #080c10;
@@ -301,7 +300,7 @@
             letter-spacing: 0.06em;
         }
 
-        /* Modal Chart Styles */
+        /* Modal Table Styles */
         .modal {
             display: none;
             position: fixed;
@@ -346,7 +345,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             border-bottom: 1px solid var(--border);
             padding-bottom: 15px;
         }
@@ -373,16 +372,53 @@
             color: var(--red);
         }
 
-        .chart-container {
-            position: relative;
-            height: 40vh;
+        /* Cấu hình lại CSS cho Bảng hiển thị CSV */
+        .table-container {
             width: 100%;
+            max-height: 50vh;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        /* Tùy chỉnh thanh cuộn */
+        .table-container::-webkit-scrollbar { width: 6px; }
+        .table-container::-webkit-scrollbar-track { background: var(--bg); }
+        .table-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        .table-container::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--mono);
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        th {
+            background: var(--surface);
+            color: var(--accent);
+            position: sticky;
+            top: 0;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--accent);
+            z-index: 10;
+        }
+
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(30, 45, 61, 0.5); /* var(--border) mờ */
+        }
+
+        tr:hover td {
+            background: rgba(0, 212, 255, 0.05); /* Sáng nhẹ khi trỏ chuột vào hàng */
+            color: #fff;
         }
 
         @media (max-width: 480px) {
             .card { padding: 32px 20px 28px; }
             h1 { font-size: 1.8rem; }
-            .chart-container { height: 30vh; }
+            table { font-size: 12px; }
         }
     </style>
 </head>
@@ -397,12 +433,12 @@
         <div class="header">
             <div class="label">// datalogger interface</div>
             <h1>ESP<em>32</em><br>CONTROL</h1>
-            <p class="subtitle">DATA_MANAGER &gt; v0.0.0-Beta</p>
+            <p class="subtitle">DATA_MANAGER &gt; v1.1.0-Stable</p>
         </div>
 
         <div class="btn-group">
             <a href="#" id="btn-view" class="button button-view">
-                <div class="button-icon">📊</div>
+                <div class="button-icon">📋</div>
                 View Data
                 <span class="button-arrow">→</span>
             </a>
@@ -431,11 +467,16 @@
     <div id="chart-modal" class="modal">
         <div class="modal-card">
             <div class="modal-header">
-                <h2>REAL-TIME POWER STREAM</h2>
+                <h2>LOGGED DATA (CSV)</h2>
                 <button id="close-modal" class="close-btn">✖</button>
             </div>
-            <div class="chart-container">
-                <canvas id="dataChart"></canvas>
+            <div class="table-container">
+                <table id="csv-table">
+                    <thead>
+                        </thead>
+                    <tbody>
+                        </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -449,56 +490,11 @@
         tick();
         setInterval(tick, 1000);
 
-        // --- CÁC BIẾN CHO CHART.JS VÀ FETCH API ---
-        const MAX_DATA_POINTS = 20;
-        let chartLabels = [];
-        let chartDataPower = [];
-        let myChart = null;
-
+        // --- FETCH API: LẤY REAL-TIME BÁO STATUS ONLINE ---
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
         const powerDisplay = document.getElementById('power-display');
 
-        // --- KHỞI TẠO BIỂU ĐỒ ---
-        function initChart() {
-            const ctx = document.getElementById('dataChart').getContext('2d');
-            
-            Chart.defaults.color = '#4a6070';
-            Chart.defaults.font.family = "'Share Tech Mono', monospace";
-
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: chartLabels,
-                    datasets: [{
-                        label: 'POWER (W)',
-                        data: chartDataPower,
-                        borderColor: '#00d4ff',
-                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                        borderWidth: 2,
-                        pointBackgroundColor: '#00d4ff',
-                        pointBorderColor: '#080c10',
-                        pointBorderWidth: 2,
-                        pointRadius: 3,
-                        pointHoverRadius: 6,
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 400 },
-                    plugins: { legend: { labels: { color: '#00d4ff', boxWidth: 12 } } },
-                    scales: {
-                        x: { grid: { color: 'rgba(30, 45, 61, 0.5)' } },
-                        y: { grid: { color: 'rgba(30, 45, 61, 0.5)' }, beginAtZero: true }
-                    }
-                }
-            });
-        }
-
-        // --- FETCH API: LẤY DỮ LIỆU TỪ ESP32 ---
         function fetchRealTimeData() {
             fetch('/api/data')
                 .then(response => {
@@ -506,50 +502,84 @@
                     return response.json();
                 })
                 .then(data => {
-                    // Cập nhật UI trạng thái
                     statusDot.style.background = 'var(--green)';
                     statusDot.style.boxShadow = '0 0 8px var(--green)';
                     statusText.textContent = 'DEVICE ONLINE';
                     powerDisplay.textContent = data.power.toFixed(2) + ' W';
-
-                    // Cập nhật dữ liệu mảng
-                    chartLabels.push(data.time);
-                    chartDataPower.push(data.power);
-
-                    if (chartLabels.length > MAX_DATA_POINTS) {
-                        chartLabels.shift();
-                        chartDataPower.shift();
-                    }
-
-                    // Vẽ lại biểu đồ nếu Modal đang mở
-                    if (myChart) {
-                        myChart.update();
-                    }
                 })
                 .catch(error => {
-                    console.error('Mất kết nối với ESP32:', error);
+                    console.error('Lỗi:', error);
                     statusDot.style.background = 'var(--red)';
                     statusDot.style.boxShadow = '0 0 8px var(--red)';
                     statusText.textContent = 'CONNECTION LOST';
                     powerDisplay.textContent = '-- W';
                 });
         }
-
-        // Gọi API mỗi 5 giây
         setInterval(fetchRealTimeData, 5000);
-        fetchRealTimeData(); // Lấy ngay khi tải trang
+        fetchRealTimeData();
 
-        // --- LOGIC GIAO DIỆN NÚT BẤM ---
+        // --- LOGIC: TẢI VÀ PARSE FILE CSV THÀNH BẢNG HTML ---
+        function loadCsvIntoTable() {
+            const tableHead = document.querySelector('#csv-table thead');
+            const tableBody = document.querySelector('#csv-table tbody');
+            
+            // Xóa dữ liệu cũ, in Loading
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Loading data...</td></tr>';
+
+            // Gọi AJAX tải file CSV
+            fetch('/download')
+                .then(response => response.text()) // Lấy file dạng Text thuần
+                .then(csvText => {
+                    // Tách file thành từng dòng
+                    const rows = csvText.trim().split('\n');
+                    
+                    if (rows.length === 0 || rows[0] === "") {
+                        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No data available</td></tr>';
+                        return;
+                    }
+
+                    // 1. Dòng đầu tiên là Tiêu đề cột (Headers)
+                    const headers = rows[0].split(',');
+                    let theadHTML = '<tr>';
+                    headers.forEach(header => {
+                        theadHTML += `<th>${header.trim()}</th>`;
+                    });
+                    theadHTML += '</tr>';
+                    tableHead.innerHTML = theadHTML;
+
+                    // 2. Các dòng tiếp theo là Dữ liệu (Body)
+                    let tbodyHTML = '';
+                    // Chạy ngược từ dòng cuối về dòng 1 để Dữ liệu mới nhất luôn nằm trên cùng
+                    for (let i = rows.length - 1; i > 0; i--) { 
+                        if (rows[i].trim() === '') continue;
+                        const cols = rows[i].split(',');
+                        tbodyHTML += '<tr>';
+                        cols.forEach(col => {
+                            tbodyHTML += `<td>${col.trim()}</td>`;
+                        });
+                        tbodyHTML += '</tr>';
+                    }
+                    
+                    tableBody.innerHTML = tbodyHTML || '<tr><td colspan="3" style="text-align:center;">No data available</td></tr>';
+                })
+                .catch(error => {
+                    console.error("Lỗi đọc CSV:", error);
+                    tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--red);">Error loading data</td></tr>';
+                });
+        }
+
+        // --- GIAO DIỆN NÚT BẤM ---
         const btnView = document.getElementById('btn-view');
         const modal = document.getElementById('chart-modal');
         const btnClose = document.getElementById('close-modal');
         const btnDelete = document.getElementById('btn-delete');
 
-        // Mở Modal Biểu Đồ
+        // Mở Modal Bảng Dữ liệu
         btnView.addEventListener('click', (e) => {
             e.preventDefault();
             modal.classList.add('active');
-            if (!myChart) initChart();
+            loadCsvIntoTable(); // Yêu cầu vẽ bảng mỗi lần mở
         });
 
         // Đóng Modal
@@ -558,10 +588,10 @@
             if (e.target === modal) modal.classList.remove('active');
         });
 
-        // Cảnh báo trước khi xóa
+        // Cảnh báo xóa
         btnDelete.addEventListener('click', (e) => {
-            if(!confirm('CẢNH BÁO: Hành động này sẽ xóa vĩnh viễn dữ liệu trên ESP32. Bạn có chắc chắn không?')) {
-                e.preventDefault(); // Hủy chuyển hướng nếu chọn Cancel
+            if(!confirm('CẢNH BÁO: Hành động này sẽ xóa vĩnh viễn dữ liệu CSV trên ESP32. Bạn có chắc chắn không?')) {
+                e.preventDefault();
             }
         });
     </script>
