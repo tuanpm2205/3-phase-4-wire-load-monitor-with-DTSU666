@@ -135,7 +135,7 @@
 
     void loop(){
         // Chu kỳ đọc data
-        if (millis() - tmr >= 5000){
+        if (millis() - tmr >= 30000){
             tmr = millis();
 
             float P = PZEM_Read_Power();
